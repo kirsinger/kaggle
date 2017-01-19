@@ -15,10 +15,12 @@ X = [
     'Sex',
     'Pclass',
     'Fare',
-    'Age',
+    'AgeFilledByClassMedian',
+    'AgeClass',
     'SibSp',
     'Parch',
-    'FamilySize'
+    'FamilySize',
+    'Married'
 ]
 Y = 'Survived'
 ID = 'PassengerId'
@@ -48,16 +50,38 @@ def embarked_to_integer(embarked):
 
 def clean_data(data, mode='train'):
     data['Sex'] = data['Sex'].apply(gender_to_integer)
+    data['Title'] = data['Name'].apply(extract_name_title)
     data['Embarked'] = data['Embarked'].apply(embarked_to_integer)
-
+    data['AgeFilledByClassMedian'] = fill_ages_with_class_median(data)
+    data['AgeClass'] = data['AgeFilledByClassMedian'] * data['Pclass']
     data['FamilySize'] = data['SibSp'] + data['Parch']
+    data['Married'] = extract_marital_status(data)
 
     return data.fillna(0)
 
+def fill_ages_with_class_median(data):
+    median_age_by_class = data.groupby('Pclass')['Age'].median().to_dict()
+    return data.apply(
+        lambda row:
+            median_age_by_class[row['Pclass']]
+            if pd.isnull(row['Age'])
+            else row['Age'],
+        axis=1
+    )
 
-def equalize_target_class(data, target_class):
+def extract_name_title(name):
+    return name.split(',')[1].split('.')[0].strip()
+
+def name_title_to_integer(name_title):
     return
 
+def extract_marital_status(data):
+    return data['Title'].apply(
+        lambda title:
+            0
+            if (title == 'Master') or (title == 'Miss') or (title == 'Mlle') or (title == 'Ms')
+            else 1
+    )
 
 def fit_model(x, y):
     model = GridSearchCV(
@@ -99,8 +123,8 @@ def main():
         x_train, x_test, y_train, y_test = train_test_split(
             train[X],
             train[Y],
-            test_size = 0.3,
-            train_size = 0.7
+            test_size = 0.2,
+            train_size = 0.8
         )
 
         model = fit_model(x_train, y_train)
